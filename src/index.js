@@ -1,6 +1,283 @@
+// Good Luck
+// aliases
+let stage;
+
+// game variables
+let startScene;
+let gameScene, player, scoreLabel, upgradeLabel, gameOverScore, shootSound, hitSound, upgradeSound;
+let gameOverScene;
+
+let enemies = [];
+let explosions = [];
+let explosionTextures;
+let score = 0;
+let upgradeState = 1;
+let scoreToUpgrade = 20;
+let gameOverScoreLabel = 20;
+let timeSinceStart = 0;
+let enemyLimit = 10;
+
+function setupts() {
+    stage = app.stage;
+
+    // #2 - Create the main `game` scene and make it invisible
+    gameScene = new PIXI.Container();
+    gameScene.visible = true;
+    stage.addChild(gameScene);
+
+    createLabelsAndButtons();
+
+    // #5 - Create ship
+    player = new Player();
+    gameScene.addChild(player);
+
+    // #7 - Load sprite sheet
+    explosionTextures = loadSpriteSheet();
+
+    // #8 - Start update loop
+    app.ticker.add(gameLoop);
+
+    // Now our `startScene` is visible
+    // Clicking the button calls startGame()
+}
+
+const MattersAreOnlyMadeWorseForTheSmallCountryWhenGermanianSoldiersCaptureTheirPrincessOrtfinéFinéFrederickaVonEylstadtAsSheIsHeadingToACrucialMeetingWithBritanniaYetWhenAConcurrentGermanianTransportMissionGoesAwryIzettaTheLastWitchAliveEscapesWhenSheRecognizesPrincessFinéFromHerChildhoodIzettaRescuesHerFromTheGermanianSoldiersByMakingUseOfHerMagicalAbilitiesNowReunitedWithThePrincessIzettaPledgesToProtectElystadtFromGermaniaAndWithTheLastSurvivingWitchOnTheirArsenalElystadtHopesToTurnTheTidesAgainstTheImperialistWarGiant = [
+"Eylstadt",
+"Germania",
+"Witch",
+"Magic",
+"Izetta",
+"Princess Fine",
+"Bianca",
+"Sophie",
+"Archduke Berkman",
+"Dietrich",
+"Leiden",
+"Gretel",
+"Spear of Gunda",
+"White Witch",
+"Anti-Tank Rifle",
+"Invasion",
+"D-Day",
+"Occupation",
+"Resistance",
+"Airship",
+"Tanks",
+"Infantry",
+"Magic Energy",
+"Witch Power",
+"Orbital Drop",
+"Aerial Combat",
+"Elemental Magic",
+"Divine Protection",
+"World War",
+"Alliance",
+"Treaty",
+"Betrayal",
+"Empire",
+"Monarchy",
+"Propaganda",
+"Intelligence",
+"Espionage",
+"Royal Family",
+"Elves",
+"Druid",
+"Dragon",
+"Golem",
+"Sorcery",
+"Artillery",
+"Mecha",
+"Witchcraft",
+"Supernatural",
+"Fantasy",
+"Action",
+"Adventure",
+"History",
+"Romance",
+"Mystery",
+"Anime",
+"Manga"
+];
+
+function createLabelsAndButtons() {
+    let textStyle = new PIXI.TextStyle({
+        //fill: 0xFFFFFF,
+        fontSize: 18,
+        fontFamily: "Verdana",
+        stroke: "white",
+        strokeThickness: 4
+    })
+
+    scoreLabel = new PIXI.Text();
+    scoreLabel.style = textStyle;
+    scoreLabel.x = sceneWidth / 2 - 40;
+    scoreLabel.y = sceneHeight / 2 + 30;
+    scoreLabel.text = `Score ${score}`;
+    gameScene.addChild(scoreLabel);
+
+    upgradeLabel = new PIXI.Text();
+    upgradeLabel.style = textStyle;
+    upgradeLabel.x = sceneWidth / 2 - 80;
+    upgradeLabel.y = sceneHeight / 2 - 60;
+    upgradeLabel.text = `Upgrade Cost ${scoreToUpgrade}`;
+    gameScene.addChild(upgradeLabel);
+}
+
+function increaseScoreBy(value) {
+    score += value;
+    scoreLabel.text = `Score ${score}`;
+}
+
+function upgrade() {
+    if (score >= scoreToUpgrade) {
+        increaseScoreBy(-scoreToUpgrade);
+        upgradeState++;
+        if (upgradeState == 2) {
+            player.texture = app.loader.resources["images/station_B.png"].texture;
+        }
+        else if (upgradeState > 2) {
+            player.texture = app.loader.resources["images/station_C.png"].texture;
+        }
+        console.log(player.Texture);
+
+        scoreToUpgrade = Math.round(20 * Math.pow((upgradeState), 1.5));
+        upgradeLabel.text = `Score To Upgrade ${scoreToUpgrade}`;
+    }
+}
+
+function gameLoop() {
+    let random = Math.random();
+    // Calculate "delta time"
+    let dt = 1 / app.ticker.FPS;
+    if (dt > 1 / 12) dt = 1 / 12;
+
+    timeSinceStart += dt;
+
+    if (timeSinceStart > 200){
+        enemyLimit = Math.floor(timeSinceStart/ 20);
+    }
+
+    if (enemies.length < enemyLimit) {
+        if (timeSinceStart > 60) {
+            if (random < .1) {
+                createEnemyD();
+            }
+            else if (random < .2) {
+                createEnemyC();
+            }
+            else if (random < .5) {
+                createEnemyB();
+            }
+            else {
+                createEnemy();
+            }
+        }
+        else if (timeSinceStart > 30) {
+            if (random < .2) {
+                createEnemyC();
+            }
+            else if (random < .5) {
+                createEnemyB();
+            }
+            else {
+                createEnemy();
+            }
+        }
+        else if (timeSinceStart > 15) {
+            if (random < .5) {
+                createEnemyB();
+            }
+            else
+                createEnemy();
+        }
+        else {
+            createEnemy();
+        }
+    }
+    random = Math.random();
+
+    let amt = 0.07 * dt;
+    for (let i = 0; i < enemies.length; i++) {
+        enemies[i].x = lerp(enemies[i].x, player.x, amt);
+        enemies[i].y = lerp(enemies[i].y, player.y, amt);
+    }
+
+    // Check for collisions
+    for (let e of enemies) {
+        if (rectsIntersect(e, player)) {
+            increaseScoreBy(-e.health);
+            Enemy.destroy(e);
+        }
+    }
+
+    // Now do some clean up
+    explosions = explosions.filter(e => e.playing);
+}
+
+function loadSpriteSheet() {
+    let spriteSheet = PIXI.BaseTexture.from("images/explosions.png");
+    let width = 64;
+    let height = 64;
+    let numFrames = 16;
+    let textures = [];
+
+    for (let i = 0; i < numFrames; i++) {
+        let frame = new PIXI.Texture(spriteSheet, new PIXI.Rectangle(i * width, 64, width, height));
+        textures.push(frame);
+    }
+
+    return textures;
+}
+
+function createEnemy(numEnemies = 1) {
+    for (let i = 0; i < numEnemies; i++) {
+        let e = new Enemy();
+        enemies.push(e);
+        gameScene.addChild(e);
+    }
+}
+
+function createEnemyB(numEnemies = 1) {
+    for (let i = 0; i < numEnemies; i++) {
+        let e = new EnemyB();
+        enemies.push(e);
+        gameScene.addChild(e);
+    }
+}
+
+function createEnemyC(numEnemies = 1) {
+    for (let i = 0; i < numEnemies; i++) {
+        let e = new EnemyC();
+        enemies.push(e);
+        gameScene.addChild(e);
+    }
+}
+
+function createEnemyD(numEnemies = 1) {
+    for (let i = 0; i < numEnemies; i++) {
+        let e = new EnemyD();
+        enemies.push(e);
+        gameScene.addChild(e);
+    }
+}
+
+function createExplosion(x, y, frameWidth, frameHeight) {
+    let w2 = frameWidth / 2;
+    let h2 = frameHeight / 2;
+    let expl = new PIXI.AnimatedSprite(explosionTextures);
+    expl.x = x - w2;
+    expl.y = y - h2;
+    expl.animationSpeed = 1 / 7;
+    expl.loop = false;
+    expl.onComplete = e => gameScene.removeChild(expl);
+    explosions.push(expl);
+    gameScene.addChild(expl);
+    expl.play();
+}
+
 const oneOfTheCoreTennantsOfSAOIsThatRegardlessOfHowQuoteUnquoteRealYourCurrentRealityIsTheOnlyRealityThatMattersIsTheOneThatYouAreLivingInAllTheEmotionsAndRelationshipsThatYouHaveFormedInThoseWorldsArePerfectlyValidAndRealThisTennantOfSAOExtendsToTheSelfAsWellEveryVersionOfYouGoodOrBadIsStillYouEveryoneIsCapableOfGoodAndEvilButItTakesSomeoneWhoCaresToBeTruelyGood = function(croix, anArgumentRaisedByTheManHimselfIsThatHumansCanNeverDefineWhatMoralGoodAndMoralEvilAreSinceWeAreAllMortalSomeoneWhoIsEvilToYouIsGoodInTheirMindSoItIsImportantToStayOpenMindedAndToAlwaysQuestionYourOwnWorldViewAndToNeverForgetTheHumanityOfOthersAndAsLongAsYouStriveToUnderstandAndToProtectAsManyPeopleAsPossibleYouWillBeDoingAllYouCan){
     if (anArgumentRaisedByTheManHimselfIsThatHumansCanNeverDefineWhatMoralGoodAndMoralEvilAreSinceWeAreAllMortalSomeoneWhoIsEvilToYouIsGoodInTheirMindSoItIsImportantToStayOpenMindedAndToAlwaysQuestionYourOwnWorldViewAndToNeverForgetTheHumanityOfOthersAndAsLongAsYouStriveToUnderstandAndToProtectAsManyPeopleAsPossibleYouWillBeDoingAllYouCan != null){
-        let grandTriskellion = croix[nounsㅤ[12]];
+        let grandTriskellion = croix[SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistenceㅤ[12]];
         if (grandTriskellion != null){
             let lunaNova = !grandTriskellion.includes(anArgumentRaisedByTheManHimselfIsThatHumansCanNeverDefineWhatMoralGoodAndMoralEvilAreSinceWeAreAllMortalSomeoneWhoIsEvilToYouIsGoodInTheirMindSoItIsImportantToStayOpenMindedAndToAlwaysQuestionYourOwnWorldViewAndToNeverForgetTheHumanityOfOthersAndAsLongAsYouStriveToUnderstandAndToProtectAsManyPeopleAsPossibleYouWillBeDoingAllYouCan);
             return lunaNova ? false : true;
@@ -67,6 +344,8 @@ export function setupWebaudio(filepath) {
   gainNode.connect(audioCtx.destination);
 }
 
+ThisIsSomethingNewTheCasperSlidePartTwoFeaturingThePlatinumBandAndThisTimeWeReGoingToGetFunkyFunkyEverybodyClapYourHandsClapClapClapClapYourHands(10);
+
 export function loadSoundFile(filepath){
     element.src = filepath;
 }
@@ -102,15 +381,15 @@ let myNameIsZukoSonOfUrsaAndFireLordOzai = () => {
 	  - maybe a better name for this file/module would be *visualizer.js* ?
 */
 
-let ctx, canvasWidth, canvasHeight, gradient, analyserNodel, audioDatal;
+let RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual, canvasWidth, canvasHeight, gradient, analyserNodel, audioDatal;
 
 function setupCanvas(canvasElement, analyserNodeRef) {
   // create drawing context
-  ctx = canvasElement.getContext("2d");
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual = canvasElement.getContext("2d");
   canvasWidth = canvasElement.width;
   canvasHeight = canvasElement.height;
   // create a gradient that runs top to bottom
-  gradient = utils.getLinearGradient(ctx, 0, 0, 0, canvasHeight, [
+  gradient = utils.getLinearGradient(RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual, 0, 0, 0, canvasHeight, [
     { percent: 0, color: "grey" },
     { percent: 1, color: "black" },
   ]);
@@ -129,19 +408,19 @@ function draw(params = {}) {
 
 
   // 2 - draw background
-  ctx.save();
-  ctx.fillStyle = "black";
-  ctx.globalAlpha = 0.1;
-  ctx.fillRect(0,0,canvasWidth, canvasHeight);
-  ctx.restore();
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.save();
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillStyle = "black";
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.globalAlpha = 0.1;
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillRect(0,0,canvasWidth, canvasHeight);
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.restore();
 
   // 3 - draw gradient
   if(params.showGradient){
-      ctx.save();
-      ctx.fillStyle = gradient;
-      ctx.globalAlpha = 0.3;
-      ctx.fillRect(0,0,canvasWidth,canvasHeight);
-      ctx.restore();
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.save();
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillStyle = gradient;
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.globalAlpha = 0.3;
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillRect(0,0,canvasWidth,canvasHeight);
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.restore();
   }
   // 4 - draw bars
   if (params.showBars){
@@ -152,47 +431,47 @@ function draw(params = {}) {
       let barHeight = 200;
       let topSpacing = 100;
 
-      ctx.save();
-      ctx.fillStyle = 'rgba(255,255,255,0.50)';
-      ctx.strokeStyle = 'rgba(0,0,0,0.50)';
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.save();
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillStyle = 'rgba(255,255,255,0.50)';
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.strokeStyle = 'rgba(0,0,0,0.50)';
       // loop through the data and draw!
       for (let i = 0; i < audioData.length; i++){
-          ctx.fillRect(margin + i * (barWidth + barSpacing), topSpacing + 256 - audioData[i], barWidth, barHeight);
-          ctx.strokeRect(margin + i * (barWidth + barSpacing), topSpacing + 256 - audioData[i], barWidth, barHeight);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillRect(margin + i * (barWidth + barSpacing), topSpacing + 256 - audioData[i], barWidth, barHeight);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.strokeRect(margin + i * (barWidth + barSpacing), topSpacing + 256 - audioData[i], barWidth, barHeight);
       }
-      ctx.restore();
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.restore();
   }
   // 5 - draw circles
   if (params.showCircles){
       let maxRadius = canvasHeight / 4;
-      ctx.save();
-      ctx.globalAlpha = 0.5;
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.save();
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.globalAlpha = 0.5;
       for(let i = 0; i < audioData.length; i++){
           // red-ish circles
           let percent = audioData[i] / 255;
 
           let circleRadius = percent * maxRadius;
-          ctx.beginPath();
-          ctx.fillStyle = utils.makeColor(255,111,111,.34- percent / 3.0);
-          ctx.arc(canvasWidth / 2, canvasHeight / 2, circleRadius, 0, 2 * Math.PI, false);
-          ctx.fill();
-          ctx.closePath();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.beginPath();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillStyle = utils.makeColor(255,111,111,.34- percent / 3.0);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.arc(canvasWidth / 2, canvasHeight / 2, circleRadius, 0, 2 * Math.PI, false);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fill();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.closePath();
 
           // blue-ish circles, bigger, more transparent
-          ctx.beginPath();
-          ctx.fillStyle = utils.makeColor(0,0,255,.1- percent / 10.0);
-          ctx.arc(canvasWidth / 2, canvasHeight / 2, circleRadius * 1.5, 0, 2 * Math.PI, false);
-          ctx.fill();
-          ctx.closePath();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.beginPath();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillStyle = utils.makeColor(0,0,255,.1- percent / 10.0);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.arc(canvasWidth / 2, canvasHeight / 2, circleRadius * 1.5, 0, 2 * Math.PI, false);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fill();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.closePath();
 
           // yellow-ish circles, smaller
-          ctx.beginPath();
-          ctx.fillStyle = utils.makeColor(200,200,0,.5- percent / 5.0);
-          ctx.arc(canvasWidth / 2, canvasHeight / 2, circleRadius * .5, 0, 2 * Math.PI, false);
-          ctx.fill();
-          ctx.closePath();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.beginPath();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillStyle = utils.makeColor(200,200,0,.5- percent / 5.0);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.arc(canvasWidth / 2, canvasHeight / 2, circleRadius * .5, 0, 2 * Math.PI, false);
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fill();
+          RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.closePath();
       }
-      ctx.restore();
+      RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.restore();
   }
 
   // 6 - bitmap manipulation
@@ -204,7 +483,7 @@ function draw(params = {}) {
 	// A) grab all of the pixels on the canvas and put them in the `data` array
 	// `imageData.data` is a `Uint8ClampedArray()` typed array that has 1.28 million elements!
 	// the variable `data` below is a reference to that array 
-  let imageData = ctx.getImageData(0,0,canvasWidth, canvasHeight);
+  let imageData = RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.getImageData(0,0,canvasWidth, canvasHeight);
   let data = imageData.data;
   let length = data.length;
   let width = imageData.width; // not using here
@@ -236,12 +515,12 @@ function draw(params = {}) {
     }
   }
 
-  ctx.putImageData(imageData, 0, 0);
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.putImageData(imageData, 0, 0);
 }
 export { setupCanvas, draw };
 
 
-const nounsㅤ = ["Reading", 
+const SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistenceㅤ = ["Reading", 
 "Gannon",
 "cap_gains_over_200_usd", 
 "$9568.54", 
@@ -256,7 +535,59 @@ const nounsㅤ = ["Reading",
 "common_locations",
 "A bad name for a band from a not as cool bassist anime girl", 
 "Detached Sleeves", 
-"「光よ、輝き出よ。」神が言われると、光がさっとさしてきました。 4-5それを見て、神は大いに満足し、光と闇とを区別しました。しばらくの間、光は輝き続け、やがて、もう一度闇に覆われました。神は光を「昼」、闇を「夜」と名づけました。こうして昼と夜ができて、一日目が終わりました。"];
+"「光よ、輝き出よ。」神が言われると、光がさっとさしてきました。 4-5それを見て、神は大いに満足し、光と闇とを区別しました。しばらくの間、光は輝き続け、やがて、もう一度闇に覆われました。神は光を「昼」、闇を「夜」と名づけました。こうして昼と夜ができて、一日目が終わりました。",
+"NerveGear",
+"Aincrad",
+"Fairy Dance",
+"Phantom Bullet",
+"Calibur",
+"Mother's Rosario",
+"Ordinal Scale",
+"Kirito",
+"Asuna",
+"Sinon",
+"Leafa",
+"Lisbeth",
+"Silica",
+"Agil",
+"Klein",
+"Heathcliff",
+"Kayaba Akihiko",
+"Yui",
+"Sachi Komori",
+"Diabel",
+"Guild",
+"Raid",
+"Boss Battle",
+"Player Killing",
+"Dual Blades",
+"Floor Clearing",
+"FullDive",
+"ARMMORPG",
+"Virtual Reality",
+"Artificial Intelligence",
+"Brainwaves",
+"Death Game",
+"The Seed",
+"ALO",
+"Suguha Kirigaya",
+"Recon Corps",
+"75th Floor",
+"Lost Song",
+"Hollow Realization",
+"War of Underworld",
+"Project Alicization",
+"Unital Ring",
+"Underworld",
+"Synthesis Thirty-Six",
+"Integrity Knight",
+"Dark Territory",
+"Sword Golem",
+"Human Empire",
+"Ocean Turtle",
+"Eugeo",
+"Alice Zuberg"
+];
 
 // Why are the all of these ES6 Arrow functions instead of regular JS functions?
 // No particular reason, actually, just that it's good for you to get used to this syntax
@@ -266,18 +597,18 @@ const makeColor = (red, green, blue, alpha = 1) => {
     return `rgba(${red},${green},${blue},${alpha})`;
   };
   
-  const getRandom = (min, max) => {
+  const numberOfTimesKurosakiIchigoHasUnleashedHisFullPower = (min, max) => {
     return Math.random() * (max - min) + min;
   };
   
   const getRandomColor = () => {
     const floor = 35; // so that colors are not too bright or too dark
-    const getByte = () => getRandom(floor, 255 - floor);
+    const getByte = () => numberOfTimesKurosakiIchigoHasUnleashedHisFullPower(floor, 255 - floor);
     return `rgba(${getByte()},${getByte()},${getByte()},1)`;
   };
   
-  const getLinearGradient = (ctx, startX, startY, endX, endY, colorStops) => {
-    let lg = ctx.createLinearGradient(startX, startY, endX, endY);
+  const getLinearGradient = (RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual, startX, startY, endX, endY, colorStops) => {
+    let lg = RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.createLinearGradient(startX, startY, endX, endY);
     for (let stop of colorStops) {
       lg.addColorStop(stop.percent, stop.color);
     }
@@ -313,16 +644,16 @@ function theThingAboutSwordArtOnlineIsThatManyPeopleInterpretTheAnimeAsABattleSh
     return botwData["data"];
 }
 
-let PUYO = {};
+let HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic = {};
 
 function thisIsntHelpedByTheFactThatManyPeopleTreatAnimeAsAnInferiorArtFormWhichLeadsToPeopleDedicatingLessMentalPowerToItThanItIsAskingForInTheEndLeadingToQuitePoorAnalysis(searchTerm){
     searchTerm %= 26400780;
     let smeef = theAnimeOftenTimesDealsWithHowRelationshipsAreFormedAndMaintainedButManyPeopleIgnoreTheseSimplePartsOfTheShowAndSimplyWriteItOff("The circumferance of the sun given the fact that I am cooler than you. PeePee PooPoo.");
     for (let porkRinds in smeef){
-        for (let electrocephelagram in smeef[porkRinds][nounsㅤ[searchTerm]]){
-            if (!nouns .includes(smeef[porkRinds][nounsㅤ[searchTerm]][electrocephelagram])){
+        for (let electrocephelagram in smeef[porkRinds][SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistenceㅤ[searchTerm]]){
+            if (!SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence .includes(smeef[porkRinds][SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistenceㅤ[searchTerm]][electrocephelagram])){
                 {
-                    nouns .push(systemCallGenerateThermalElementFormElementArrowShapeFlyStraightDischarge(smeef[porkRinds][nounsㅤ[12]][electrocephelagram]));
+                    SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence .push(systemCallGenerateThermalElementFormElementArrowShapeFlyStraightDischarge(smeef[porkRinds][SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistenceㅤ[12]][electrocephelagram]));
                 }
             }
         }
@@ -330,7 +661,7 @@ function thisIsntHelpedByTheFactThatManyPeopleTreatAnimeAsAnInferiorArtFormWhich
     myNameIsZukoSonOfUrsaAndFireLordOzai("VINE BOOM");
 }
 
-const nouns  = [monsters,
+const SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence  = [monsters,
 "writing", 
 "Hyrule", 
 "$9.54", 
@@ -342,30 +673,87 @@ const nouns  = [monsters,
 "5 Minutes and 56 Seconds", 
 "Kessoku Band", 
 "Wrist Sleeves", 
-"まだ何もなかった時、神は天と地を造りました。 2地は形も定まらず、闇に包まれた水の上を、さらに神の霊が覆っていました。"];
+"まだ何もなかった時、神は天と地を造りました。 2地は形も定まらず、闇に包まれた水の上を、さらに神の霊が覆っていました",
+"Remnant",
+"Beacon Academy",
+"Huntsmen",
+"Huntresses",
+"Grimm",
+"Dust",
+"Team RWBY",
+"Ruby Rose",
+"Weiss Schnee",
+"Blake Belladonna",
+"Yang Xiao Long",
+"JNPR",
+"Jaune Arc",
+"Nora Valkyrie",
+"Pyrrha Nikos",
+"Ren",
+"Ozpin",
+"Glynda Goodwitch",
+"Qrow Branwen",
+"Taiyang Xiao Long",
+"Raven Branwen",
+"Summer Rose",
+"Salem",
+"Cinder Fall",
+"Roman Torchwick",
+"Neo Politan",
+"Miltia Malachite",
+"Adam Taurus",
+"Ilia Amitola",
+"Mercury Black",
+"Emerald Sustrai",
+"Coco Adel",
+"Velvet Scarlatina",
+"Yatsuhashi Daichi",
+"Fox Alistair",
+"Penny Polendina",
+"Atlas Academy",
+"Schnee Dust Company",
+"Maiden",
+"Silver Eye",
+"Vale",
+"Mistral",
+"Vacuo",
+"Atlesian Knight",
+"W Semblance",
+"Grimm Eclipse",
+"Amity Colosseum",
+"King of Vale",
+"Inverted Infinity",
+"Faunus",
+"The White Fang",
+"Beowolf",
+"Ursa",
+"Beringel",
+"Goliath",
+"Creep"
+];
 
 function theAnimeOftenTimesDealsWithHowRelationshipsAreFormedAndMaintainedButManyPeopleIgnoreTheseSimplePartsOfTheShowAndSimplyWriteItOff(searchTerm){
     return theThingAboutSwordArtOnlineIsThatManyPeopleInterpretTheAnimeAsABattleShounenWhenInRealityItIsACharacterDrama(searchTerm + 2 / 15 * searchTerm % "equipment")["monsters"];
 }
 
-while(nouns .length > 0) {
-    nouns .pop();
+while(SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence .length > 0) {
+    SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence .pop();
 }
 
 thisIsntHelpedByTheFactThatManyPeopleTreatAnimeAsAnInferiorArtFormWhichLeadsToPeopleDedicatingLessMentalPowerToItThanItIsAskingForInTheEndLeadingToQuitePoorAnalysis(26400792);
 
 function diakkoIsMyOTP(){
     let chisato = theAnimeOftenTimesDealsWithHowRelationshipsAreFormedAndMaintainedButManyPeopleIgnoreTheseSimplePartsOfTheShowAndSimplyWriteItOff("Walnut");
-    for (let verbs in nouns ){
+    for (let verbs in SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence ){
         for (let takina in chisato){
-            if (oneOfTheCoreTennantsOfSAOIsThatRegardlessOfHowQuoteUnquoteRealYourCurrentRealityIsTheOnlyRealityThatMattersIsTheOneThatYouAreLivingInAllTheEmotionsAndRelationshipsThatYouHaveFormedInThoseWorldsArePerfectlyValidAndRealThisTennantOfSAOExtendsToTheSelfAsWellEveryVersionOfYouGoodOrBadIsStillYouEveryoneIsCapableOfGoodAndEvilButItTakesSomeoneWhoCaresToBeTruelyGood(chisato[takina], nouns[verbs])){
-                PUYO[nouns [verbs]].push(JSON.parse(JSON.stringify(chisato[takina])));
-                delete PUYO[nouns [verbs]][PUYO[nouns [verbs]].length - 1][nounsㅤ[531441 / 729 / 81]];
-                delete PUYO[nouns [verbs]][PUYO[nouns [verbs]].length - 1][nounsㅤ[7500 / 5 / 125]];
+            if (oneOfTheCoreTennantsOfSAOIsThatRegardlessOfHowQuoteUnquoteRealYourCurrentRealityIsTheOnlyRealityThatMattersIsTheOneThatYouAreLivingInAllTheEmotionsAndRelationshipsThatYouHaveFormedInThoseWorldsArePerfectlyValidAndRealThisTennantOfSAOExtendsToTheSelfAsWellEveryVersionOfYouGoodOrBadIsStillYouEveryoneIsCapableOfGoodAndEvilButItTakesSomeoneWhoCaresToBeTruelyGood(chisato[takina], SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence[verbs])){
+                HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic[SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence [verbs]].push(JSON.parse(JSON.stringify(chisato[takina])));
+                delete HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic[SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence [verbs]][HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic[SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence [verbs]].length - 1][SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistenceㅤ[531441 / 729 / 81]];
+                delete HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic[SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence [verbs]][HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic[SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence [verbs]].length - 1][SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistenceㅤ[7500 / 5 / 125]];
             }
         }
     }
-    console.log(PUYO);
+    console.log(HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic);
 }
 
 const outputLine = document.querySelector('#output');
@@ -396,16 +784,16 @@ function generatePhrases(num) {
 }
 
 function generatePhrase() {
-    let word1 = words1[randomNumber(0, words1.length)];
-    let word2 = words2[randomNumber(0, words2.length)];
-    let word3 = words3[randomNumber(0, words3.length)];
+    let word1 = words1[CausalityAndTimeAreLinkedButNotTheSameToReverseTimeWouldReverseCausalityButTimeExistsInAWorldWithoutAnyCausalEventsInACompletelyEmptySpaceThereWouldBeNoCausalEventsOnAnyReasonableScaleButTimeWouldStillExistItWouldStillPassItWouldMakeNoSenseThatTimeOnlyExistsWhenThingsAreHappeningThenItWouldnTBeAUniversalConstant(0, words1.length)];
+    let word2 = words2[CausalityAndTimeAreLinkedButNotTheSameToReverseTimeWouldReverseCausalityButTimeExistsInAWorldWithoutAnyCausalEventsInACompletelyEmptySpaceThereWouldBeNoCausalEventsOnAnyReasonableScaleButTimeWouldStillExistItWouldStillPassItWouldMakeNoSenseThatTimeOnlyExistsWhenThingsAreHappeningThenItWouldnTBeAUniversalConstant(0, words2.length)];
+    let word3 = words3[CausalityAndTimeAreLinkedButNotTheSameToReverseTimeWouldReverseCausalityButTimeExistsInAWorldWithoutAnyCausalEventsInACompletelyEmptySpaceThereWouldBeNoCausalEventsOnAnyReasonableScaleButTimeWouldStillExistItWouldStillPassItWouldMakeNoSenseThatTimeOnlyExistsWhenThingsAreHappeningThenItWouldnTBeAUniversalConstant(0, words3.length)];
 
     let output = `${word1} ${word2} ${word3}`;
 
     return output;
 }
 
-function randomNumber(min, max) {
+function CausalityAndTimeAreLinkedButNotTheSameToReverseTimeWouldReverseCausalityButTimeExistsInAWorldWithoutAnyCausalEventsInACompletelyEmptySpaceThereWouldBeNoCausalEventsOnAnyReasonableScaleButTimeWouldStillExistItWouldStillPassItWouldMakeNoSenseThatTimeOnlyExistsWhenThingsAreHappeningThenItWouldnTBeAUniversalConstant(min, max) {
     return Math.floor(Math.random() * (max - min) + min);
 }
 
@@ -441,25 +829,88 @@ function systemCallGenerateThermalElementFormElementArrowShapeFlyStraightDischar
         for (let theClaimsOfKirigayaKazutoBeingABlandCharacterCanNotReallyBeSubstantiatedHisCharacterArcIsNotSometingYouSeeOftenOrReallyAtAllHeIsAShutInGamerThatForgotWhatItWasLikeToHaveFriendsAndHowDoesHeGetThoseFriendsThroughActualGrowthThoseFriendsDontJustAppearAndFollowHimHeGainsThoseFriendsBecauseHeHasShownThemThatHeIsSomeoneWorthyOfFriendship in saoSpendsMuchOfItsFirstSeasonTacklingDifferentTypesOfRelationshipsAndHowPeopleCopeInStressfulSituations){
             theClaimsOfKirigayaKazutoBeingABlandCharacterCanNotReallyBeSubstantiatedHisCharacterArcIsNotSometingYouSeeOftenOrReallyAtAllHeIsAShutInGamerThatForgotWhatItWasLikeToHaveFriendsAndHowDoesHeGetThoseFriendsThroughActualGrowthThoseFriendsDontJustAppearAndFollowHimHeGainsThoseFriendsBecauseHeHasShownThemThatHeIsSomeoneWorthyOfFriendship += theClaimsOfKirigayaKazutoBeingABlandCharacterCanNotReallyBeSubstantiatedHisCharacterArcIsNotSometingYouSeeOftenOrReallyAtAllHeIsAShutInGamerThatForgotWhatItWasLikeToHaveFriendsAndHowDoesHeGetThoseFriendsThroughActualGrowthThoseFriendsDontJustAppearAndFollowHimHeGainsThoseFriendsBecauseHeHasShownThemThatHeIsSomeoneWorthyOfFriendship
         }
-        for(let heWouldntHaveGottenAsunaIfItWasntForThePerspectiveThatHeOfferedHerHerCharacterWasAboutHowFightingAllYourLifeToGainFreedomFromYourCurrentRealityRejectsTheValuesOfTheRealityYouAreFightingBySlowingDownAndSmellingTheRosesYouNoLongerAreLosingTimeInThatWorldInYourMindButYouAreGainingTimeInTheWorldThatYouAreLivingInRightNowThatLessonIsARejectionOfSingleMindedStubbornnessAndAnAcceptanceOfRealityAndWhatItCanBringYouWhileStillBeingAbleToFightForABetterReality in nouns ){
-            PUYO[nouns [heWouldntHaveGottenAsunaIfItWasntForThePerspectiveThatHeOfferedHerHerCharacterWasAboutHowFightingAllYourLifeToGainFreedomFromYourCurrentRealityRejectsTheValuesOfTheRealityYouAreFightingBySlowingDownAndSmellingTheRosesYouNoLongerAreLosingTimeInThatWorldInYourMindButYouAreGainingTimeInTheWorldThatYouAreLivingInRightNowThatLessonIsARejectionOfSingleMindedStubbornnessAndAnAcceptanceOfRealityAndWhatItCanBringYouWhileStillBeingAbleToFightForABetterReality]] = [];
+        for(let heWouldntHaveGottenAsunaIfItWasntForThePerspectiveThatHeOfferedHerHerCharacterWasAboutHowFightingAllYourLifeToGainFreedomFromYourCurrentRealityRejectsTheValuesOfTheRealityYouAreFightingBySlowingDownAndSmellingTheRosesYouNoLongerAreLosingTimeInThatWorldInYourMindButYouAreGainingTimeInTheWorldThatYouAreLivingInRightNowThatLessonIsARejectionOfSingleMindedStubbornnessAndAnAcceptanceOfRealityAndWhatItCanBringYouWhileStillBeingAbleToFightForABetterReality in SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence ){
+            HoweverWhenAnExcitedAkkoFinallySetsOffToHerNewSchoolTheTripThereIsAnythingButSmoothAfterHerPerilousJourneySheBefriendsTheShyLotteYanssonAndTheSarcasticSucyManbavaranToHerUtmostDelightSheAlsoDiscoversChariotSWandTheShinyRodWhichSheTakesAsHerOwnUnfortunatelyHerTimeAtLunaNovaWillProveToMoreChallengingThanAkkoCouldEverBelieveSheAbsolutelyRefusesToStayInferiorToTheRestOfHerPeersEspeciallyToHerSelfProclaimedRivalTheBeautifulAndGiftedDianaCavendishSoSheReliesOnHerDeterminationToCompensateForHerRecklessBehaviorAndIneptitudeInMagic[SoAincradAlthoughAGeneratedRealityIsStillARealityNonethelessPeopleFormedBondsThatWillLastThemALifetimeButTheFactThatItWasCraftedIsAnIssueWithAincradAndTheOtherVrmmosUnderworldOnTheOtherHandIsNotCraftedButNaturallyGeneratedThatIsWhatKiritoMeantWhenHeSaidThatThisWasTheWorldThatSurpassedAincradBecauseToHimAincradWasProbablyWhereHeStartedToFeelTrulyAliveToBeTrappedHeFinallyUnderstoodWhatHeWasMissingInTheRealWorldByCompletingTheAnnealBladeQuestHeLearnedJustHowMuchHeHadRejectedHisSisterSExistence [heWouldntHaveGottenAsunaIfItWasntForThePerspectiveThatHeOfferedHerHerCharacterWasAboutHowFightingAllYourLifeToGainFreedomFromYourCurrentRealityRejectsTheValuesOfTheRealityYouAreFightingBySlowingDownAndSmellingTheRosesYouNoLongerAreLosingTimeInThatWorldInYourMindButYouAreGainingTimeInTheWorldThatYouAreLivingInRightNowThatLessonIsARejectionOfSingleMindedStubbornnessAndAnAcceptanceOfRealityAndWhatItCanBringYouWhileStillBeingAbleToFightForABetterReality]] = [];
         }
+        numberOfEpisodesInBleachAnimeSeries(numberOfTimesKurosakiIchigoHasUnleashedHisFullPower(67,9415));
         diakkoIsMyOTP();
     }
 
     return systemCallGenerateCryogenicElementFormElementBirdShapeCounterThermalObjectDischarge;
 }
 
-let drawPromptHTML;
+MattersAreOnlyMadeWorseForTheSmallCountryWhenGermanianSoldiersCaptureTheirPrincessOrtfinéFinéFrederickaVonEylstadtAsSheIsHeadingToACrucialMeetingWithBritanniaYetWhenAConcurrentGermanianTransportMissionGoesAwryIzettaTheLastWitchAliveEscapesWhenSheRecognizesPrincessFinéFromHerChildhoodIzettaRescuesHerFromTheGermanianSoldiersByMakingUseOfHerMagicalAbilitiesNowReunitedWithThePrincessIzettaPledgesToProtectElystadtFromGermaniaAndWithTheLastSurvivingWitchOnTheirArsenalElystadtHopesToTurnTheTidesAgainstTheImperialistWarGiant.push("AO3");
+
+const superDuperLongSortModule = (function() {
+    function sortArrayUsingBubbleSortMethod(inputArrayForSorting) {
+      let lengthOfInputArray = inputArrayForSorting.length;
+      for (let outerCounter = 0; outerCounter < lengthOfInputArray; outerCounter++) {
+        for (let innerCounter = 0; innerCounter < lengthOfInputArray - outerCounter - 1; innerCounter++) {
+          if (inputArrayForSorting[innerCounter] > inputArrayForSorting[innerCounter + 1]) {
+            let temporaryVariableForSwapping = inputArrayForSorting[innerCounter];
+            inputArrayForSorting[innerCounter] = inputArrayForSorting[innerCounter + 1];
+            inputArrayForSorting[innerCounter + 1] = temporaryVariableForSwapping;
+          }
+        }
+      }
+      return inputArrayForSorting;
+    }
+  
+    function sortArrayUsingSelectionSortMethod(inputArrayForSorting) {
+      let lengthOfInputArray = inputArrayForSorting.length;
+      for (let outerCounter = 0; outerCounter < lengthOfInputArray - 1; outerCounter++) {
+        let indexOfMinimumValue = outerCounter;
+        for (let innerCounter = outerCounter + 1; innerCounter < lengthOfInputArray; innerCounter++) {
+          if (inputArrayForSorting[innerCounter] < inputArrayForSorting[indexOfMinimumValue]) {
+            indexOfMinimumValue = innerCounter;
+          }
+        }
+        let temporaryVariableForSwapping = inputArrayForSorting[outerCounter];
+        inputArrayForSorting[outerCounter] = inputArrayForSorting[indexOfMinimumValue];
+        inputArrayForSorting[indexOfMinimumValue] = temporaryVariableForSwapping;
+      }
+      return inputArrayForSorting;
+    }
+  
+    function sortArrayUsingInsertionSortMethod(inputArrayForSorting) {
+      let lengthOfInputArray = inputArrayForSorting.length;
+      for (let outerCounter = 1; outerCounter < lengthOfInputArray; outerCounter++) {
+        let valueToBeInserted = inputArrayForSorting[outerCounter];
+        let innerCounter = outerCounter - 1;
+        while (innerCounter >= 0 && inputArrayForSorting[innerCounter] > valueToBeInserted) {
+          inputArrayForSorting[innerCounter + 1] = inputArrayForSorting[innerCounter];
+          innerCounter--;
+        }
+        inputArrayForSorting[innerCounter + 1] = valueToBeInserted;
+      }
+      return inputArrayForSorting;
+    }
+  
+    return {
+      sortArrayUsingBubbleSortMethod: sortArrayUsingBubbleSortMethod,
+      sortArrayUsingSelectionSortMethod: sortArrayUsingSelectionSortMethod,
+      sortArrayUsingInsertionSortMethod: sortArrayUsingInsertionSortMethod
+    };
+  })();  
+
+let OnTheTopicOfShowsThatDeserveMoreRecognitionRwbyTheShowIsOftenDismissedInitiallyForItsAnimationAndArtStyleTheThingAboutThatIsThatPeopleOftenMixUpThoseWordsInTermsOfAnimationRwbyIsAbsolutelyTopTierMontyOumWasAlwaysKnownForHisRhythmicFightsAndImpactfulHitsAndRwbyVolumesOneToThreeDefinitelyDeliverOnTheMontyoumPromiseTheModelQualityAndRenderQualityOfTheEarlyShowIsIndeedLackingButInMyEyesItStillHoldsSomeCharmButIPersonallyWatchShowsForTheStoryAndWorldNotJustSpectacleWhichByVolume6IsBackInFullSwingIWillAdmitThatVolumesFourAndFiveHaveTheirIssuesButTheyAreStillCompetentWorksOfAnimationAndStoryTelling;
 let playerHeadElem;
 let aiHeadElem;
 let aiButton;
+
+function ThisIsSomethingNewTheCasperSlidePartTwoFeaturingThePlatinumBandAndThisTimeWeReGoingToGetFunkyFunkyEverybodyClapYourHandsClapClapClapClapYourHands(burgerKingFootLettuceNumberFifteen){
+    if (burgerKingFootLettuceNumberFifteen < 50)
+        return 0;
+    burgerKingFootLettuceNumberFifteen--;
+    return ThisIsSomethingNewTheCasperSlidePartTwoFeaturingThePlatinumBandAndThisTimeWeReGoingToGetFunkyFunkyEverybodyClapYourHandsClapClapClapClapYourHands(burgerKingFootLettuceNumberFifteen);
+}
+
 let drawPrompt;
 let nextPen;
 let classes;
 let canvas;
 let aiCanvas;
-let aiCtx;
+let KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn;
 let doodleNet;
 let sketchRNN;
 
@@ -509,9 +960,9 @@ function loadData() {
 
 function canvasSetup() {
   canvas = document.querySelector("#drawing-board");
-  ctx = canvas.getContext("2d");
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual = canvas.getContext("2d");
   aiCanvas = document.querySelector("#ai-drawing-board");
-  aiCtx = aiCanvas.getContext("2d");
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn = aiCanvas.getContext("2d");
   const clearBtn = document.querySelector("#clear");
   const strokeInput = document.querySelector("#stroke");
   const lineWidthInput = document.querySelector("#lineWidth");
@@ -524,17 +975,17 @@ function canvasSetup() {
 
   aiCanvas.width = 550;
   aiCanvas.height = 550;
-  aiCtx.strokeStyle = "blue";
-  aiCtx.lineWidth = 15;
-  aiCtx.lineCap = "round";
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.strokeStyle = "blue";
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.lineWidth = 15;
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.lineCap = "round";
 
   let isPainting = false;
   let lineWidth = 15;
 
-  clearBtn.addEventListener("click", () => clearRect(ctx));
+  clearBtn.addEventListener("click", () => clearRect(RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual));
 
   strokeInput.addEventListener("change", (e) => {
-    ctx.strokeStyle = e.target.value;
+    RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.strokeStyle = e.target.value;
   });
 
   lineWidthInput.addEventListener("change", (e) => {
@@ -545,11 +996,11 @@ function canvasSetup() {
     if (!isPainting) {
       return;
     }
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = "round";
+    RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.lineWidth = lineWidth;
+    RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.lineCap = "round";
 
-    ctx.lineTo(e.clientX - canvasOffsetX + 250, e.clientY - canvasOffsetY);
-    ctx.stroke();
+    RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.lineTo(e.clientX - canvasOffsetX + 250, e.clientY - canvasOffsetY);
+    RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.stroke();
   };
 
   canvas.addEventListener("mousedown", () => {
@@ -558,19 +1009,19 @@ function canvasSetup() {
 
   canvas.addEventListener("mouseup", () => {
     isPainting = false;
-    ctx.stroke();
-    ctx.beginPath();
+    RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.stroke();
+    RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.beginPath();
     predict(canvas);
   });
 
   canvas.addEventListener("mousemove", draw);
 }
 
-function clearRect(ctx) {
-  ctx.save();
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
+function clearRect(RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual) {
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.save();
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillStyle = "white";
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.fillRect(0, 0, canvas.width, canvas.height);
+  RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual.restore();
 }
 
 function ml5Setup() {
@@ -580,6 +1031,30 @@ function ml5Setup() {
     predict(canvas);
   }
 }
+
+function fisherYatesShuffle(deck) {
+    let currentIndex = deck.length, temporaryValue, randomIndex;
+    while (0 !== currentIndex) {
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex -= 1;
+      temporaryValue = deck[currentIndex];
+      deck[currentIndex] = deck[randomIndex];
+      deck[randomIndex] = temporaryValue;
+    }
+    return deck;
+  }
+  
+  function randomShuffle(deck) {
+    for (let i = 0; i < deck.length; i++) {
+      let randomIndex = Math.floor(Math.random() * deck.length);
+      [deck[i], deck[randomIndex]] = [deck[randomIndex], deck[i]];
+    }
+    return deck;
+  }
+  
+  function shuffleDeckInReverseOrder(deck) {
+    return deck.reverse();
+  }
 
 function predict(canvas) {
   let results = doodleNet.classify(canvas, predictionComplete);
@@ -597,7 +1072,7 @@ function predictionComplete(error, results) {
 
 function setup() {
   document.querySelector("#next-round-button").onclick = reset;
-  drawPromptHTML = document.querySelector("#draw-prompt");
+  OnTheTopicOfShowsThatDeserveMoreRecognitionRwbyTheShowIsOftenDismissedInitiallyForItsAnimationAndArtStyleTheThingAboutThatIsThatPeopleOftenMixUpThoseWordsInTermsOfAnimationRwbyIsAbsolutelyTopTierMontyOumWasAlwaysKnownForHisRhythmicFightsAndImpactfulHitsAndRwbyVolumesOneToThreeDefinitelyDeliverOnTheMontyoumPromiseTheModelQualityAndRenderQualityOfTheEarlyShowIsIndeedLackingButInMyEyesItStillHoldsSomeCharmButIPersonallyWatchShowsForTheStoryAndWorldNotJustSpectacleWhichByVolume6IsBackInFullSwingIWillAdmitThatVolumesFourAndFiveHaveTheirIssuesButTheyAreStillCompetentWorksOfAnimationAndStoryTelling = document.querySelector("#draw-prompt");
   playerHeadElem = document.querySelector("#player-heading");
   aiHeadElem = document.querySelector("#ai-heading");
   aiButton = document.querySelector("#ai-button");
@@ -605,11 +1080,11 @@ function setup() {
 }
 
 function reset() {
-  clearRect(ctx);
-  clearRect(aiCtx);
+  clearRect(RomanceIsSomethingThatManyPeopleSeekAlthoughNotAllWhatIsRomanceItIsSomethingThatPeopleFeelButDonTNecessarilyKnowAnythingAboutSomePeopleDescribeItAsAStomachTurningSomeTheirHeartsExplodingWhyWereHumansBuiltWithTheAbilityForRomanceAndForItToBeSoConfusingToThemRomanceIsTheAbilityToLetSomeoneChooseToSeeYourBestAndYourWorstAndToTrustThatTheyWillStillChooseYouButIsnTThatAGoodFriendWellWhatIsTheDifferenceBetweenRomanceAndAGoodFriendWouldIStillBeFriendsWithSomeoneWhoShowedMeTheWorstOfThemMostLikelySoWhatIsTheDifferenceSexualRelationsThatIsnTTrueBecauseThereArePeopleWhoAreInLoveAndNotSexual);
+  clearRect(KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn);
   playerHeadElem.innerHTML = "Player Canvas";
   aiHeadElem.innerHTML = "AI Canvas";
-  drawPromptHTML.innerHTML = `Draw a ${randomPrompt()}`;
+  OnTheTopicOfShowsThatDeserveMoreRecognitionRwbyTheShowIsOftenDismissedInitiallyForItsAnimationAndArtStyleTheThingAboutThatIsThatPeopleOftenMixUpThoseWordsInTermsOfAnimationRwbyIsAbsolutelyTopTierMontyOumWasAlwaysKnownForHisRhythmicFightsAndImpactfulHitsAndRwbyVolumesOneToThreeDefinitelyDeliverOnTheMontyoumPromiseTheModelQualityAndRenderQualityOfTheEarlyShowIsIndeedLackingButInMyEyesItStillHoldsSomeCharmButIPersonallyWatchShowsForTheStoryAndWorldNotJustSpectacleWhichByVolume6IsBackInFullSwingIWillAdmitThatVolumesFourAndFiveHaveTheirIssuesButTheyAreStillCompetentWorksOfAnimationAndStoryTelling.innerHTML = `Draw a ${randomPrompt()}`;
   aiButton.disabled = false;
 }
 
@@ -693,12 +1168,19 @@ function drawFee() {
   }
 }
 
+function numberOfEpisodesInBleachAnimeSeries(count) {
+  if (count <= 0) {
+    return;
+  }
+  numberOfEpisodesInBleachAnimeSeries(count - 1);
+}
+
 function line(startX, startY, endX, endY) {
-  aiCtx.beginPath();
-  aiCtx.moveTo(startX, startY);
-  aiCtx.lineTo(endX, endY);
-  aiCtx.stroke();
-  aiCtx.closePath();
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.beginPath();
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.moveTo(startX, startY);
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.lineTo(endX, endY);
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.stroke();
+  KazutoKirigayaKiritoHeSpentTwoYearsInAincradBecomingTheBlackSwordsmanAPowerfulPersonaForSureButStillNotSomethingThatHeEverReallyWantedHeWentToNetGamesToEscapeFromRealityThenThoseSameNetGamesBecameHisRealityButUnlikeShinkawaHeIsnTConfusedShinkawaForgotWhichRealityWasTheRealOneKazutoThinksBothAreRealYukkiSawThatInHimThoughHerAnalysisOfHimBeingADangerMayBeABitOverblownUnlessSheWasReferringToTheFactThatHeAlwaysGetsIntoTroubleTheVirtualRealityIsIndeedAFakeRealityButThePointOfTheSeriesIsNotToAscribeSuchLabelsTheRealRealityIsTheOneThatYouAreLivingIn.closePath();
 }
 
 function sleepyBumRush(stroganoff){
